@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Backtesting - Algo Trading Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #10b981;
+            --secondary-color: #3b82f6;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-control, .form-select {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: var(--primary-color);
+            color: #e2e8f0;
+            box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #059669);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .positive {
+            color: var(--primary-color);
+        }
+        
+        .negative {
+            color: var(--danger-color);
+        }
+        
+        .chart-container {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .strategy-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .strategy-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .strategy-card.selected {
+            border-color: var(--primary-color);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .results-section {
+            display: none;
+        }
+        
+        .trade-item {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .trade-item.sell {
+            border-left-color: var(--danger-color);
+        }
+        
+        .nav-link {
+            color: #94a3b8;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary-color);
+        }
+        
+        .parameter-slider {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        
+        .slider-value {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                AlgoTrade Pro
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Trading Dashboard
+                </a>
+                <a class="nav-link active" href="/backtest">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    ML Backtesting
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h1 class="h3 mb-2">
+                            <i class="fas fa-chart-bar text-primary me-2"></i>
+                            ML Backtesting Engine
+                        </h1>
+                        <p class="text-muted mb-0">
+                            Test trading strategies with machine learning models using historical data
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Configuration Panel -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-cog me-2"></i>
+                            Backtest Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Symbol Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Stock Symbol</label>
+                            <select class="form-select" id="backtestSymbol">
+                                <option value="RELIANCE">RELIANCE</option>
+                                <option value="TCS">TCS</option>
+                                <option value="INFY">INFY</option>
+                                <option value="HDFCBANK">HDFCBANK</option>
+                                <option value="SBIN">SBIN</option>
+                                <option value="ICICIBANK">ICICIBANK</option>
+                            </select>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate" value="2024-01-01">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate" value="2024-12-31">
+                            </div>
+                        </div>
+
+                        <!-- Capital -->
+                        <div class="mb-3">
+                            <label class="form-label">Initial Capital (₹)</label>
+                            <input type="number" class="form-control" id="initialCapital" value="100000" min="10000" step="10000">
+                        </div>
+
+                        <!-- Strategy Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">ML Strategy</label>
+                            <div id="strategiesList">
+                                <!-- Strategies will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Parameters -->
+                        <div class="mb-3">
+                            <label class="form-label">Strategy Parameters</label>
+                            <div id="strategyParameters">
+                                <!-- Parameters will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Run Backtest -->
+                        <button class="btn btn-primary w-100" id="runBacktest">
+                            <i class="fas fa-play me-2"></i>
+                            Run Backtest
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            About ML Strategies
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6 class="text-primary">ML Momentum Strategy</h6>
+                            <p class="small text-muted">
+                                Uses machine learning to detect momentum patterns with adaptive thresholds.
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="text-primary">ML Mean Reversion</h6>
+                            <p class="small text-muted">
+                                ML-enhanced mean reversion with volatility-adjusted entry points.
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="text-primary">Ensemble ML</h6>
+                            <p class="small text-muted">
+                                Combines multiple ML models for improved accuracy and risk management.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="col-lg-8">
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Running backtest with ML models...</p>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection">
+                    <!-- Performance Metrics -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-tachometer-alt me-2"></i>
+                                        Performance Metrics
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <div class="metric-card text-center">
+                                                <div class="metric-value positive" id="totalReturn">+0.00%</div>
+                                                <div class="metric-label">Total Return</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <div class="metric-card text-center">
+                                                <div class="metric-value" id="sharpeRatio">0.00</div>
+                                                <div class="metric-label">Sharpe Ratio</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <div class="metric-card text-center">
+                                                <div class="metric-value positive" id="winRate">0.00%</div>
+                                                <div class="metric-label">Win Rate</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <div class="metric-card text-center">
+                                                <div class="metric-value negative" id="maxDrawdown">0.00%</div>
+                                                <div class="metric-label">Max Drawdown</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Equity Curve -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Equity Curve
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="equityChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Metrics -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-chart-pie me-2"></i>
+                                        Trade Analysis
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6 mb-3">
+                                            <div class="text-center">
+                                                <div class="h4 text-primary" id="totalTrades">0</div>
+                                                <div class="small text-muted">Total Trades</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <div class="text-center">
+                                                <div class="h4 text-success" id="profitableTrades">0</div>
+                                                <div class="small text-muted">Profitable Trades</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <div class="text-center">
+                                                <div class="h4 text-info" id="avgReturn">₹0.00</div>
+                                                <div class="small text-muted">Avg Return/Trade</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 mb-3">
+                                            <div class="text-center">
+                                                <div class="h4 text-warning" id="profitFactor">0.00</div>
+                                                <div class="small text-muted">Profit Factor</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-list me-2"></i>
+                                        Recent Trades
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="tradeHistory" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="text-center text-muted py-3">
+                                            No trades to display
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Welcome Message -->
+                <div class="card" id="welcomeMessage">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-chart-bar fa-4x text-primary mb-4"></i>
+                        <h3 class="mb-3">Welcome to ML Backtesting</h3>
+                        <p class="text-muted mb-4">
+                            Configure your backtest parameters and run machine learning strategies on historical data.
+                        </p>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center">
+                                    <i class="fas fa-brain fa-2x text-info mb-2"></i>
+                                    <h6>ML Powered</h6>
+                                    <p class="small text-muted">Advanced machine learning strategies</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center">
+                                    <i class="fas fa-history fa-2x text-warning mb-2"></i>
+                                    <h6>Historical Data</h6>
+                                    <p class="small text-muted">Test on comprehensive market data</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center">
+                                    <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                                    <h6>Performance Metrics</h6>
+                                    <p class="small text-muted">Detailed analytics and insights</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/backtest.js"></script>
+    <script>
+        class BacktestEngine {
+            constructor() {
+                this.currentStrategy = null;
+                this.equityChart = null;
+                this.initializeEventListeners();
+                this.loadStrategies();
+            }
+
+            initializeEventListeners() {
+                document.getElementById('runBacktest').addEventListener('click', () => this.runBacktest());
+            }
+
+            async loadStrategies() {
+                try {
+                    const response = await fetch('/api/backtest/strategies');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayStrategies(data.strategies);
+                    }
+                } catch (error) {
+                    console.error('Error loading strategies:', error);
+                }
+            }
+
+            displayStrategies(strategies) {
+                const strategiesList = document.getElementById('strategiesList');
+                strategiesList.innerHTML = '';
+
+                Object.entries(strategies).forEach(([key, strategy]) => {
+                    const strategyCard = document.createElement('div');
+                    strategyCard.className = 'strategy-card card mb-2';
+                    strategyCard.innerHTML = `
+                        <div class="card-body py-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="strategy" 
+                                       value="${key}" id="strategy-${key}">
+                                <label class="form-check-label w-100" for="strategy-${key}">
+                                    <h6 class="mb-1">${strategy.name}</h6>
+                                    <p class="small text-muted mb-0">${strategy.description}</p>
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                    
+                    strategyCard.querySelector('input').addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            this.selectStrategy(key, strategy);
+                        }
+                    });
+
+                    strategiesList.appendChild(strategyCard);
+                });
+            }
+
+            selectStrategy(strategyKey, strategy) {
+                this.currentStrategy = strategyKey;
+                this.displayParameters(strategy.parameters);
+                
+                // Add selected class to card
+                document.querySelectorAll('.strategy-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                event.target.closest('.strategy-card').classList.add('selected');
+            }
+
+            displayParameters(parameters) {
+                const parametersContainer = document.getElementById('strategyParameters');
+                parametersContainer.innerHTML = '';
+
+                Object.entries(parameters).forEach(([paramKey, paramConfig]) => {
+                    const paramDiv = document.createElement('div');
+                    paramDiv.className = 'mb-3';
+                    
+                    let inputHtml = '';
+                    if (paramConfig.type === 'number') {
+                        inputHtml = `
+                            <label class="form-label">${paramKey.replace('_', ' ').toUpperCase()}</label>
+                            <input type="range" class="form-range parameter-slider" 
+                                   id="param-${paramKey}" 
+                                   min="${paramConfig.min}" 
+                                   max="${paramConfig.max}" 
+                                   step="${paramConfig.step || 0.1}" 
+                                   value="${paramConfig.default}">
+                            <div class="d-flex justify-content-between">
+                                <small>${paramConfig.min}</small>
+                                <span class="slider-value">${paramConfig.default}</span>
+                                <small>${paramConfig.max}</small>
+                            </div>
+                        `;
+                    } else if (paramConfig.type === 'boolean') {
+                        inputHtml = `
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="param-${paramKey}" ${paramConfig.default ? 'checked' : ''}>
+                                <label class="form-check-label" for="param-${paramKey}">
+                                    ${paramKey.replace('_', ' ').toUpperCase()}
+                                </label>
+                            </div>
+                        `;
+                    }
+
+                    paramDiv.innerHTML = inputHtml;
+                    parametersContainer.appendChild(paramDiv);
+
+                    // Add event listener for sliders
+                    if (paramConfig.type === 'number') {
+                        const slider = document.getElementById(`param-${paramKey}`);
+                        const valueSpan = slider.nextElementSibling.querySelector('.slider-value');
+                        
+                        slider.addEventListener('input', (e) => {
+                            valueSpan.textContent = e.target.value;
+                        });
+                    }
+                });
+            }
+
+            getParameters() {
+                const parameters = {};
+                const inputs = document.querySelectorAll('#strategyParameters input');
+                
+                inputs.forEach(input => {
+                    const paramKey = input.id.replace('param-', '');
+                    if (input.type === 'range') {
+                        parameters[paramKey] = parseFloat(input.value);
+                    } else if (input.type === 'checkbox') {
+                        parameters[paramKey] = input.checked;
+                    }
+                });
+
+                return parameters;
+            }
+
+            async runBacktest() {
+                const symbol = document.getElementById('backtestSymbol').value;
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const initialCapital = parseFloat(document.getElementById('initialCapital').value);
+                const strategy = this.currentStrategy;
+
+                if (!strategy) {
+                    alert('Please select a strategy');
+                    return;
+                }
+
+                const parameters = this.getParameters();
+
+                // Show loading
+                this.showLoading(true);
+
+                try {
+                    const response = await fetch('/api/backtest/run', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            symbol: symbol,
+                            strategy: strategy,
+                            start_date: startDate,
+                            end_date: endDate,
+                            initial_capital: initialCapital,
+                            parameters: parameters
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.displayResults(data.results);
+                    } else {
+                        throw new Error(data.message);
+                    }
+
+                } catch (error) {
+                    console.error('Backtest error:', error);
+                    alert('Backtest failed: ' + error.message);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            showLoading(show) {
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                const resultsSection = document.getElementById('resultsSection');
+                const welcomeMessage = document.getElementById('welcomeMessage');
+
+                if (show) {
+                    loadingSpinner.style.display = 'block';
+                    resultsSection.style.display = 'none';
+                    welcomeMessage.style.display = 'none';
+                } else {
+                    loadingSpinner.style.display = 'none';
+                    resultsSection.style.display = 'block';
+                    welcomeMessage.style.display = 'none';
+                }
+            }
+
+            displayResults(results) {
+                // Update metrics
+                document.getElementById('totalReturn').textContent = 
+                    `${results.total_return >= 0 ? '+' : ''}${results.total_return}%`;
+                document.getElementById('totalReturn').className = 
+                    `metric-value ${results.total_return >= 0 ? 'positive' : 'negative'}`;
+                
+                document.getElementById('sharpeRatio').textContent = results.sharpe_ratio.toFixed(2);
+                document.getElementById('winRate').textContent = `${results.win_rate}%`;
+                document.getElementById('maxDrawdown').textContent = `${results.max_drawdown}%`;
+
+                // Update trade analysis
+                document.getElementById('totalTrades').textContent = results.total_trades;
+                document.getElementById('profitableTrades').textContent = results.profitable_trades;
+                document.getElementById('avgReturn').textContent = `₹${results.avg_return_per_trade.toFixed(2)}`;
+                document.getElementById('profitFactor').textContent = results.profit_factor.toFixed(2);
+
+                // Display trade history
+                this.displayTradeHistory(results.trade_history);
+
+                // Create equity curve chart
+                this.createEquityChart(results.equity_curve);
+            }
+
+            displayTradeHistory(trades) {
+                const tradeHistory = document.getElementById('tradeHistory');
+                
+                if (trades.length === 0) {
+                    tradeHistory.innerHTML = '<div class="text-center text-muted py-3">No trades to display</div>';
+                    return;
+                }
+
+                tradeHistory.innerHTML = trades.map(trade => `
+                    <div class="trade-item ${trade.type.toLowerCase()}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${trade.symbol}</strong>
+                                <span class="badge ${trade.type === 'BUY' ? 'bg-success' : 'bg-danger'} ms-2">
+                                    ${trade.type}
+                                </span>
+                            </div>
+                            <div class="text-end">
+                                <div>Entry: ₹${trade.entry_price.toFixed(2)}</div>
+                                <div class="${trade.pnl >= 0 ? 'positive' : 'negative'}">
+                                    P&L: ₹${trade.pnl.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            createEquityChart(equityCurve) {
+                const ctx = document.getElementById('equityChart').getContext('2d');
+                
+                if (this.equityChart) {
+                    this.equityChart.destroy();
+                }
+
+                const labels = equityCurve.map((point, index) => `Day ${index + 1}`);
+                const data = equityCurve.map(point => point.value);
+
+                this.equityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: data,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        return `₹${context.raw.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    callback: (value) => {
+                                        return '₹' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initialize backtest engine when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.backtestEngine = new BacktestEngine();
+        });
+    </script>
+</body>
+</html>

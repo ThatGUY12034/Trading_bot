@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo Trading Bot Dashboard</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@1.1.0"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-robot"></i> Algo Trading Bot</h1>
+                <span class="status-badge live">LIVE</span>
+                <div id="tradingMode" class="trading-mode sim-mode">
+                    <i class="fas fa-desktop"></i> SIMULATION MODE
+                </div>
+            </div>
+            <div class="header-right">
+
+                <div class="time-display" id="currentTime"></div>
+                <div id="userInfo"></div>
+
+                <!-- Add Backtest Button -->
+                <a href="/backtest" class="btn btn-info" id="backtestBtn">
+                 <i class="fas fa-chart-bar"></i>Backtest
+                </a>
+                <button class="btn btn-primary" id="connectBtn">
+                    <i class="fas fa-plug"></i> Connect API
+                </button>
+            </div>
+        </header>
+
+        <!-- Angel One Login Section -->
+<!-- Angel One Login Section -->
+<div id="loginSection" class="login-section">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h1>Angel One Login</h1>
+                <p>Connect your Angel One account to start trading</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <div class="input-group">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" class="form-control" id="clientId" 
+                               placeholder="Enter 8-digit Client ID" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-group">
+                        <i class="fas fa-key input-icon"></i>
+                        <input type="password" class="form-control" id="apiKey" 
+                               placeholder="Enter API Key" required>
+                        <button type="button" class="toggle-password" data-target="apiKey">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-group">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" class="form-control" id="clientPin" 
+                               placeholder="Enter Client PIN" required>
+                        <button type="button" class="toggle-password" data-target="clientPin">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-group">
+                        <i class="fas fa-shield-alt input-icon"></i>
+                        <input type="password" class="form-control" id="totpSecret" 
+                               placeholder="Enter TOTP Secret" required>
+                        <button type="button" class="toggle-password" data-target="totpSecret">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="help-text">
+                        <i class="fas fa-info-circle"></i>
+                        Find this in your Angel One app settings
+                    </div>
+                </div>
+                
+                <div class="form-check-group">
+                    <input type="checkbox" class="form-check-input" id="rememberCredentials">
+                    <label class="form-check-label" for="rememberCredentials">
+                        Remember credentials (local storage only)
+                    </label>
+                </div>
+                
+                <button type="submit" id="loginBtn" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span class="btn-text">Login to Angel One</span>
+                    <div class="btn-loader">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <div class="security-notice">
+                    <i class="fas fa-lock"></i>
+                    <span>Your credentials are used only for Angel One API connection and are not stored on our servers</span>
+                </div>
+                <div class="demo-option">
+                    <button type="button" id="demoModeBtn" class="btn-demo">
+                        <i class="fas fa-play-circle"></i>
+                        Continue with Demo Mode
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="login-features">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3>Real-time Trading</h3>
+                <p>Execute trades instantly with live market data</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>AI Powered</h3>
+                <p>Advanced machine learning trading strategies</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Secure Connection</h3>
+                <p>Bank-level security for your trading account</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Trading Section -->
+        <div id="tradingSection" style="display: none;">
+
+            <!-- Market Selection Panel -->
+            <div class="card market-selection-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-exchange-alt"></i> Market Selection</h3>
+                </div>
+                <div class="card-body">
+                    <div class="market-selection">
+                        <div class="selection-group">
+                            <label>Select Market:</label>
+                            <select id="marketSelect" class="market-select">
+                                <option value="NSE">NSE (National Stock Exchange)</option>
+                                <option value="BSE">BSE (Bombay Stock Exchange)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="selection-group">
+                            <label>Select Segment:</label>
+                            <select id="segmentSelect" class="market-select">
+                                <option value="EQUITY">Equity</option>
+                                <option value="FUTURES">Futures</option>
+                                <option value="OPTIONS">Options</option>
+                            </select>
+                        </div>
+                        
+                        <div class="selection-group">
+                            <label>Search Stock:</label>
+                            <input type="text" id="stockSearch" placeholder="Search by symbol or name..." class="search-input">
+                        </div>
+                        
+                        <button class="btn btn-secondary" id="loadStocksBtn">
+                            <i class="fas fa-sync-alt"></i> Load Stocks
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard Grid -->
+            <div class="dashboard-grid">
+                
+                <!-- Stock List Panel -->
+                <div class="card stocks-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-list"></i> Available Stocks</h3>
+                        <div class="stock-count">
+                            <span id="stockCount">0 stocks</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="stocks-list" id="stocksList">
+                            <div class="no-stocks">Select a market and click "Load Stocks"</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Chart -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line"></i> Real-time Chart</h3>
+                        <div class="chart-controls">
+                            <select id="timeframeSelect">
+                                <option value="1m">1 Minute</option>
+                                <option value="5m">5 Minutes</option>
+                                <option value="15m">15 Minutes</option>
+                                <option value="1h" selected>1 Hour</option>
+                                <option value="1d">1 Day</option>
+                            </select>
+                            <span class="selected-symbol" id="selectedSymbol">No symbol selected</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Portfolio Overview -->
+                <div class="card portfolio-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-wallet"></i> Portfolio</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="portfolio-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Balance</span>
+                                <span class="metric-value" id="balance">₹0.00</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Today's P&L</span>
+                                <span class="metric-value" id="dailyPnL">₹0.00</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Open Positions</span>
+                                <span class="metric-value" id="openPositions">0</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Win Rate</span>
+                                <span class="metric-value" id="winRate">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Portfolio Widget -->
+                <div class="card user-portfolio-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user-circle"></i> Your Angel One Portfolio</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="userPortfolio">
+                            <div class="no-portfolio">
+                                <i class="fas fa-lock"></i>
+                                <p>Login to Angel One to view your real portfolio</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trading Signals -->
+                <div class="card signals-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-bullhorn"></i> Trading Signals</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="signal" id="currentSignal">
+                            <div class="signal-icon">
+                                <i class="fas fa-pause-circle"></i>
+                            </div>
+                            <div class="signal-info">
+                                <div class="signal-type">HOLD</div>
+                                <div class="signal-confidence">Select a stock to start trading</div>
+                            </div>
+                        </div>
+                        <div class="signal-details">
+                            <div class="detail-item">
+                                <span>Selected Stock:</span>
+                                <span id="selectedStock">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Current Price:</span>
+                                <span id="currentPrice">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Support:</span>
+                                <span id="supportLevel">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>Resistance:</span>
+                                <span id="resistanceLevel">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ML Model Performance -->
+                <div class="card ml-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-brain"></i> ML Model</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="ml-metrics">
+                            <div class="ml-metric">
+                                <div class="gauge-container">
+                                    <canvas id="accuracyGauge" width="100" height="60"></canvas>
+                                </div>
+                                <span class="ml-label">Accuracy</span>
+                            </div>
+                            <div class="ml-metric">
+                                <div class="gauge-container">
+                                    <canvas id="confidenceGauge" width="100" height="60"></canvas>
+                                </div>
+                                <span class="ml-label">Confidence</span>
+                            </div>
+                        </div>
+                        <div class="model-status">
+                            <span id="modelStatus">Select a stock to analyze</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trade History -->
+                <div class="card history-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-history"></i> Trade History</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="trade-history" id="tradeHistory">
+                            <div class="no-trades">No trades yet</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Trading -->
+                <div class="card manual-trading-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-hand-holding-usd"></i> Manual Trading</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="manual-trading-controls">
+                            <div class="trading-symbol">
+                                <span id="manualTradingSymbol">Select a stock</span>
+                            </div>
+                            <div class="quantity-control">
+                                <label>Quantity:</label>
+                                <input type="number" id="quantity" value="1" min="1" max="1000" class="quantity-input">
+                            </div>
+                            <div class="trading-buttons">
+                                <button class="btn btn-success trading-btn" id="buyBtn" disabled>
+                                    <i class="fas fa-arrow-up"></i> BUY
+                                </button>
+                                <button class="btn btn-danger trading-btn" id="sellBtn" disabled>
+                                    <i class="fas fa-arrow-down"></i> SELL
+                                </button>
+                            </div>
+                        </div>
+                        <div class="order-info">
+                            <small>Orders will be placed through your Angel One account</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Book -->
+                <div class="card order-book-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-clipboard-list"></i> Active Orders</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="orderBook">
+                            <div class="no-orders">
+                                <i class="fas fa-clipboard-check"></i>
+                                <p>No active orders</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Management -->
+                <div class="card risk-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-shield-alt"></i> Risk Management</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="risk-metrics">
+                            <div class="risk-item">
+                                <span>Max Risk per Trade</span>
+                                <span>2%</span>
+                            </div>
+                            <div class="risk-item">
+                                <span>Daily Loss Limit</span>
+                                <span>₹2,000</span>
+                            </div>
+                            <div class="risk-item">
+                                <span>Position Size</span>
+                                <span id="positionSize">₹5,000</span>
+                            </div>
+                            <div class="risk-item">
+                                <span>Current Market</span>
+                                <span id="currentMarket">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Controls -->
+                <div class="card controls-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-gamepad"></i> Bot Controls</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="control-buttons">
+                            <button class="btn btn-success control-btn" id="startBtn">
+                                <i class="fas fa-play"></i> Start Bot
+                            </button>
+                            <button class="btn btn-warning control-btn" id="pauseBtn" disabled>
+                                <i class="fas fa-pause"></i> Pause
+                            </button>
+                            <button class="btn btn-danger control-btn" id="stopBtn" disabled>
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                        </div>
+                        <div class="bot-status">
+                            <span>Status: </span>
+                            <span class="status-text" id="botStatus">Stopped</span>
+                        </div>
+                        <div class="current-selection">
+                            <span>Trading: </span>
+                            <span id="tradingSymbol">No symbol selected</span>
+                        </div>
+                        <div class="trading-mode-info">
+                            <small id="tradingModeInfo">Running in simulation mode</small>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Notifications Panel -->
+            <div class="card notifications-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-bell"></i> Notifications</h4>
+                    <button class="btn-clear" id="clearNotifications">Clear All</button>
+                </div>
+                <div class="card-body">
+                    <div class="notifications-list" id="notificationsList">
+                        <div class="no-notifications">No notifications</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="../static/js/script.js"></script>
+</body>
+</html>
